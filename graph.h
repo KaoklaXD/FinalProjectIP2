@@ -13,6 +13,7 @@ typedef struct Edge {
 typedef struct Checkpoint {
     int id;
     char name[50];
+    char desc[200];
     int available_seats;
     int max_seats;
     Edge* head;
