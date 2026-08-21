@@ -17,8 +17,8 @@ double calculate_path_score(Graph* g, Path path, int group_size) {
     int target_node = path.nodes[path.node_count - 1];
     Checkpoint cp = g->nodes[target_node];
 
-    // Penalty check: group size larger than capacity
-    if (cp.available_seats < group_size) {
+    // Double-check seat availability safety constraint
+    if (cp.available_seats < group_size || cp.max_seats <= 0) {
         return INF; 
     }
 
@@ -30,12 +30,18 @@ double calculate_path_score(Graph* g, Path path, int group_size) {
     return score;
 }
 
-// "Recommend Next Checkpoint" & "Path Guidance" Logic
+// "Recommend Next Checkpoint" with strict capacity filtering
 Recommendation recommend_next_checkpoint(Graph* g, int current_checkpoint, int group_size) {
-    Recommendation best_rec = {-1, -1, DBL_MAX};
+    Recommendation best_rec = {-1, -1, INF};
 
     for (int target = 0; target < g->num_checkpoints; target++) {
+        // 1. Skip current location
         if (target == current_checkpoint) continue;
+
+        // 2. HARD FILTER: Immediately reject checkpoints without enough seats for group_size
+        if (g->nodes[target].available_seats < group_size) {
+            continue;
+        }
 
         Path candidate_paths[K_PATHS];
         int path_count = 0;
@@ -45,7 +51,9 @@ Recommendation recommend_next_checkpoint(Graph* g, int current_checkpoint, int g
 
         for (int p = 0; p < path_count; p++) {
             double score = calculate_path_score(g, candidate_paths[p], group_size);
-            if (score < best_rec.score) {
+            
+            // Only update if score is strictly better AND valid (< INF)
+            if (score < best_rec.score && score < INF) {
                 best_rec.score = score;
                 best_rec.next_checkpoint_id = target;
                 best_rec.selected_path_index = p;
