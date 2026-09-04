@@ -136,7 +136,7 @@ int save_staff_checkpoint_input(const char *filename) {
         return 0;
     }
 
-    fprintf(fp, "CHECKPOINT %d %s %d %d\n", id, name, round_num, max_seat,roomnum);
+    fprintf(fp, "CHECKPOINT %d %s %d %d %d\n", id, name, round_num, max_seat,roomnum);
     for (int i = 0; i < round_num; i++) {
         fprintf(fp, "ROUND %d %.2f %.2f\n", i + 1, starttime[i], endtime[i]);
     }
