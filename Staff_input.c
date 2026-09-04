@@ -25,7 +25,7 @@ void strToInt(char str[50], int *num, int *i) {
 }
 
 int save_staff_checkpoint_input(const char *filename) {
-    int id, round_num, max_seat;
+    int id, round_num, max_seat,roomnum;
     char name[50];
 
     printf("=======================================\n");
@@ -39,6 +39,9 @@ int save_staff_checkpoint_input(const char *filename) {
 
     printf("Enter checkpoint name: ");
     scanf("%49s", name);
+
+    printf("Enter Roomnum: ");
+    scanf("%d", &roomnum);
 
     printf("Enter checkpoint round number: ");
     scanf("%d", &round_num);
@@ -133,7 +136,7 @@ int save_staff_checkpoint_input(const char *filename) {
         return 0;
     }
 
-    fprintf(fp, "CHECKPOINT %d %s %d %d\n", id, name, round_num, max_seat);
+    fprintf(fp, "CHECKPOINT %d %s %d %d\n", id, name, round_num, max_seat,roomnum);
     for (int i = 0; i < round_num; i++) {
         fprintf(fp, "ROUND %d %.2f %.2f\n", i + 1, starttime[i], endtime[i]);
     }
