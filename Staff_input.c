@@ -1,5 +1,4 @@
 #include <stdio.h>
-
 #include <string.h>
 #include <stdlib.h> 
 #include <errno.h>
@@ -13,7 +12,7 @@ void strToInt(char str[50], int *num, int *i) {
         *i--;
     } 
     else if (*endptr != '\0') {
-        printf("WTF");
+        printf("Error 2");
         *i--;
     }
     else if (errno == ERANGE) {
@@ -26,7 +25,7 @@ void strToInt(char str[50], int *num, int *i) {
     }
 }
 int main() {
-    while (1==1) {
+    while (1) {
         int id,round_num,max_seat;
         char name[50];
         printf("PLease Enter Information \n");
@@ -111,12 +110,7 @@ int main() {
             i--;
             continue;
         }
-
-
         endtime[i] = h + (m / 60.0);
     }
     }
-
-
-
 }

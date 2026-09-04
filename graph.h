@@ -35,4 +35,5 @@ Graph* create_graph(int num_checkpoints);
 void add_edge(Graph* g, int u, int v, double distance);
 void eppstein_k_shortest_paths(Graph* g, int start, int target, int k, Path results[], int* result_count);
 
+
 #endif
