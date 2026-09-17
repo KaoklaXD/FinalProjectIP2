@@ -1,20 +1,30 @@
- entry-audi2-212-213-1stair
+ entry-audi2-212-213-1stair(L2)
  entry-2wing2-222-223-224
- entry-232-233-3stair
- entry-2wing4-242-243-4stair
- entry-lift-arc
+ entry-232-233-3stair(L2)
+ entry-2wing4-242-243-4stair(L2)
+ entry-lift(L2)
  
- arc-312-313-1stair
+ arc-312-313-1stair(L3)
  arc-3wing2-322-323-324
- arc-331-332-3stair
- arc-3wing4-342-343-4stair
+ arc-331-332-3stair(L3)
+ arc-3wing4-342-343-4stair(L3)
+ arc-lift(L3)
  
- lift-ground-pingpong-122-123
+ lift(L1)-ground-pingpong-122-123
  ground-audi1
- pingpong-112(dream)-113-1stair
+ pingpong-112(dream)-113-1stair(L1)
  pingpong-103(dance)-atrium-entry
- atrium-141-142-143(art)-4stair
+ atrium-141-142-143(art)-4stair(L1)
  142-taobin-canteen
- taobin-bathroom-3stair
+ taobin-bathroom-3stair(L1)
 
-entry 2wing2 audi2 212 213 1stair 222 223 224 232 233 3stair lift arc 312 313 3wing2 322 323 324 331 332 3wing4 342 343 ground pingpong 122 123 audi1 112(dream) 113 103(dance) atrium 141 142 143(art) 4stair 142 taobin canteen bathroom 3stair
+ EDGE 1stair(L1) 1stair(L2) 10.0
+ EDGE 1stair(L2) 1stair(L3) 10.0
+ EDGE 3stair(L1) 3stair(L2) 10.0
+ EDGE 3stair(L2) 3stair(L3) 10.0
+ EDGE 4stair(L1) 4stair(L2) 10.0
+ EDGE 4stair(L2) 4stair(L3) 10.0
+ EDGE lift(L1) lift(L2) 10.0
+ EDGE lift(L2) lift(L3) 10.0
+
+entry 2wing2 audi2 212 213 1stair(L2) 222 223 224 232 233 3stair(L2) lift(L2) arc 312 313 3wing2 322 323 324 331 332 3wing4 342 343 lift(L3) 1stair(L3) 3stair(L3) 4stair(L3) ground pingpong 122 123 audi1 112(dream) 113 1stair(L1) 103(dance) atrium 141 142 143(art) 4stair(L1) 142 taobin canteen bathroom 3stair(L1) lift(L1)

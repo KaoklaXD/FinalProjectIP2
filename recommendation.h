@@ -19,6 +19,13 @@ typedef struct Recommendation {
     double score;
 } Recommendation;
 
-Recommendation recommend_next_checkpoint(Graph* g, int current_checkpoint, int group_size);
+// Calculates fitness score for a path based on distance, group size, and availability
+double calculate_path_score(Graph* g, Path path, int group_size, int round_idx);
+
+// Recommends the next checkpoint, taking into account round/time slot and capacity
+Recommendation recommend_next_checkpoint(Graph* g, int current_checkpoint, int group_size, int round_idx);
+
+// Backward compatible recommendation (uses overall seats or first round)
+Recommendation recommend_next_checkpoint_default(Graph* g, int current_checkpoint, int group_size);
 
 #endif

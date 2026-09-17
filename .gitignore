@@ -1,0 +1,7 @@
+*.o
+test
+staff
+visitor
+test_bin
+Staff_bin
+*.dSYM/

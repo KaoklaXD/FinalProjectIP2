@@ -2,155 +2,184 @@
 #include <string.h>
 #include <stdlib.h> 
 #include <errno.h>
+#include "graph.h"
+#include "storage.h"
 
-void strToInt(char str[50], int *num, int *i) {
+static int parse_int(const char *str, int *out_val) {
+    if (!str || *str == '\0') return 0;
     char *endptr;
+    errno = 0;
     long val = strtol(str, &endptr, 10);
+    if (str == endptr || *endptr != '\0' || errno == ERANGE) {
+        return 0;
+    }
+    *out_val = (int)val;
+    return 1;
+}
 
-    if (str == endptr) {
-        printf("Invalid format\n");
-        (*i)--;
-    } 
-    else if (*endptr != '\0') {
-        printf("Error: Invalid numeric string\n");
-        (*i)--;
-    }
-    else if (errno == ERANGE) {
-        printf("Number out of ERANGE\n");
-        (*i)--;
-    }
-    else {
-        *num = (int)val;
+static int read_time_hhmm(const char *prompt, double *decimal_time) {
+    char time_str[64];
+    while (1) {
+        printf("%s", prompt);
+        if (scanf("%63s", time_str) != 1) return 0;
+
+        char *colon = strchr(time_str, ':');
+        if (!colon) {
+            printf("[Error] Format must be HH:MM (e.g., 09:30). Please try again.\n");
+            continue;
+        }
+
+        *colon = '\0';
+        char *hour_str = time_str;
+        char *min_str = colon + 1;
+
+        int h = -1, m = -1;
+        if (!parse_int(hour_str, &h) || !parse_int(min_str, &m)) {
+            printf("[Error] Non-numeric time entered. Please try again.\n");
+            continue;
+        }
+
+        if (h < 0 || h > 23 || m < 0 || m > 59) {
+            printf("[Error] Invalid time range (Hour 0-23, Minute 0-59). Please try again.\n");
+            continue;
+        }
+
+        *decimal_time = (double)h + ((double)m / 60.0);
+        return 1;
     }
 }
 
-int save_staff_checkpoint_input(const char *filename) {
-    int id, round_num, max_seat,roomnum;
-    char name[50];
+static void show_checkpoint_room_mapping(const char *filename, int *next_suggested_id) {
+    Graph* g = create_graph(0);
+    int count = load_checkpoints(filename, g);
+    int max_id = -1;
+
+    printf("\n========================================================================\n");
+    printf("              CURRENT CHECKPOINT NUMBERS & ASSIGNED ROOMS               \n");
+    printf("========================================================================\n");
+    if (count <= 0) {
+        printf("  No checkpoints registered yet.\n");
+        *next_suggested_id = 0;
+    } else {
+        printf("  Checkpoint Number  |  Room Number  |  Checkpoint Name\n");
+        printf(" --------------------+---------------+----------------------------------\n");
+        for (int i = 0; i < g->num_checkpoints; i++) {
+            if (strlen(g->nodes[i].name) > 0) {
+                if (g->nodes[i].room_num > 0) {
+                    printf("   Checkpoint %-6d |  Room %-7d |  %s\n",
+                           g->nodes[i].id, g->nodes[i].room_num, g->nodes[i].name);
+                } else {
+                    printf("   Checkpoint %-6d |  Room %-7s |  %s\n",
+                           g->nodes[i].id, g->nodes[i].name, g->nodes[i].name);
+                }
+                if (g->nodes[i].id > max_id) {
+                    max_id = g->nodes[i].id;
+                }
+            }
+        }
+        *next_suggested_id = max_id + 1;
+        printf(" --------------------+---------------+----------------------------------\n");
+        printf("  >>> Next suggested Checkpoint Number: %d\n", *next_suggested_id);
+    }
+    printf("========================================================================\n\n");
+    free_graph(g);
+}
+
+int add_new_checkpoint(const char *filename) {
+    int id, round_num, max_seat, roomnum;
+    char name[64];
+    int next_id = 0;
+
+    // Display existing checkpoint numbers and their assigned rooms
+    show_checkpoint_room_mapping(filename, &next_id);
 
     printf("=======================================\n");
     printf("       STAFF CHECKPOINT ENTRY         \n");
     printf("=======================================\n");
-    printf("Enter checkpoint ID (or -1 to cancel): ");
-    if (scanf("%d", &id) != 1 || id == -1) {
+    printf("Enter Checkpoint Number/ID (Suggested: %d, or -1 to cancel): ", next_id);
+    if (scanf("%d", &id) != 1 || id < 0) {
         printf("Operation cancelled.\n");
         return 0;
     }
 
-    printf("Enter checkpoint name: ");
-    scanf("%49s", name);
+    printf("Enter Checkpoint Name (e.g., PhysicsLab or audi1): ");
+    scanf("%63s", name);
 
-    printf("Enter Roomnum: ");
-    scanf("%d", &roomnum);
+    printf("Enter Room Number (e.g., 122, 212, or 0 for auditorium): ");
+    if (scanf("%d", &roomnum) != 1) roomnum = 0;
 
-    printf("Enter checkpoint round number: ");
-    scanf("%d", &round_num);
-
-    printf("Enter max_seat: ");
-    scanf("%d", &max_seat);
-
-    double *starttime = (double *)malloc(round_num * sizeof(double));
-    double *endtime = (double *)malloc(round_num * sizeof(double));
-
-    if (!starttime || !endtime) {
-        printf("Memory allocation error.\n");
-        free(starttime);
-        free(endtime);
+    if (!is_valid_checkpoint_room(name, roomnum)) {
+        printf("\n[ERROR] Invalid Checkpoint Room!\n");
+        printf("Policy Rule: Only rooms with a room number (e.g., 122, 212) or auditoriums ('audi1', 'audi2') can be used as checkpoints.\n");
+        printf("Hallways, stairs, lifts, and facilities cannot be checkpoints.\n");
         return 0;
     }
 
-    for (int i = 0; i < round_num; i++) {
-        int valid = 1;
-        char time[50];
-        char hour[50], minute[50];
+    printf("\n--> Checkpoint Number %d is assigned to Room %d (%s)\n", id, roomnum, name);
 
-        // --- Start Time ---
-        printf("\nEnter round %d START time in HH:MM: ", i + 1);
-        scanf("%49s", time);
-
-        for (int j = 0; j < (int)strlen(time); j++) {
-            if (!((time[j] >= '0' && time[j] <= '9') || (time[j] == ':'))) {
-                printf("Invalid format\n");
-                valid = 0;
-                i--;
-                break;
-            }
-        }
-        if (!valid) continue;
-
-        char *token = strtok(time, ":");
-        if (token != NULL) strcpy(hour, token);
-        token = strtok(NULL, ":");
-        if (token != NULL) strcpy(minute, token);
-
-        int h = -1, m = -1;
-        strToInt(hour, &h, &i);
-        strToInt(minute, &m, &i);
-
-        if (h > 23 || h < 0 || m > 59 || m < 0) {
-            printf("Invalid time! Please enter HH:MM in valid range.\n");
-            i--;
-            continue;
-        }
-
-        starttime[i] = h + (m / 60.0);
-
-        // --- End Time ---
-        valid = 1;
-        printf("Enter round %d END time in HH:MM: ", i + 1);
-        scanf("%49s", time);
-
-        for (int j = 0; j < (int)strlen(time); j++) {
-            if (!((time[j] >= '0' && time[j] <= '9') || (time[j] == ':'))) {
-                printf("Invalid format\n");
-                valid = 0;
-                i--;
-                break;
-            }
-        }
-        if (!valid) continue;
-
-        token = strtok(time, ":");
-        if (token != NULL) strcpy(hour, token);
-        token = strtok(NULL, ":");
-        if (token != NULL) strcpy(minute, token);
-
-        strToInt(hour, &h, &i);
-        strToInt(minute, &m, &i);
-
-        if (h > 23 || h < 0 || m > 59 || m < 0) {
-            printf("Invalid time! Please enter HH:MM in valid range.\n");
-            i--;
-            continue;
-        }
-
-        endtime[i] = h + (m / 60.0);
+    printf("Enter number of rounds (1-%d): ", MAX_ROUNDS);
+    if (scanf("%d", &round_num) != 1 || round_num <= 0 || round_num > MAX_ROUNDS) {
+        printf("[Error] Invalid round count.\n");
+        return 0;
     }
 
-    // --- File Writing Engine ---
+    printf("Enter maximum seats: ");
+    if (scanf("%d", &max_seat) != 1 || max_seat <= 0) {
+        printf("[Error] Invalid seat capacity.\n");
+        return 0;
+    }
+
+    double starttime[MAX_ROUNDS];
+    double endtime[MAX_ROUNDS];
+
+    for (int i = 0; i < round_num; i++) {
+        char prompt[128];
+        printf("\n--- Round %d Configuration ---\n", i + 1);
+        snprintf(prompt, sizeof(prompt), "Enter Round %d START time (HH:MM): ", i + 1);
+        read_time_hhmm(prompt, &starttime[i]);
+
+        snprintf(prompt, sizeof(prompt), "Enter Round %d END time   (HH:MM): ", i + 1);
+        read_time_hhmm(prompt, &endtime[i]);
+    }
+
+    // Append to checkpoints.txt
     FILE *fp = fopen(filename, "a");
     if (fp == NULL) {
-        printf("Error opening file '%s' for writing!\n", filename);
-        free(starttime);
-        free(endtime);
+        printf("[Error] Unable to open '%s' for writing.\n", filename);
         return 0;
     }
 
-    fprintf(fp, "CHECKPOINT %d %s %d %d %d\n", id, name, round_num, max_seat,roomnum);
+    fprintf(fp, "CHECKPOINT %d %s %d %d %d\n", id, name, round_num, max_seat, roomnum);
     for (int i = 0; i < round_num; i++) {
-        fprintf(fp, "ROUND %d %.2f %.2f\n", i + 1, starttime[i], endtime[i]);
+        fprintf(fp, "ROUND %d %.2f %.2f %d\n", i + 1, starttime[i], endtime[i], max_seat);
     }
     fprintf(fp, "END_CHECKPOINT\n\n");
-
     fclose(fp);
-    free(starttime);
-    free(endtime);
 
-    printf("\n[SUCCESS] Saved checkpoint ID %d to '%s'\n\n", id, filename);
+    printf("\n[SUCCESS] Checkpoint Number %d -> Room %d (%s) saved to '%s'!\n", id, roomnum, name, filename);
     return 1;
 }
 
 int main() {
-    save_staff_checkpoint_input("checkpoints.txt");
+    int choice = 0;
+    while (1) {
+        printf("\n=======================================\n");
+        printf("   KVIS OPEN HOUSE: STAFF CONTROL PANEL\n");
+        printf("=======================================\n");
+        printf(" [1] Add New Checkpoint & Rounds\n");
+        printf(" [2] Exit\n");
+        printf("Enter selection: ");
+
+        if (scanf("%d", &choice) != 1 || choice == 2) {
+            printf("\nExiting Staff Control Panel. Goodbye!\n");
+            break;
+        }
+
+        if (choice == 1) {
+            add_new_checkpoint("checkpoints.txt");
+        } else {
+            printf("Invalid selection! Please enter 1 or 2.\n");
+        }
+    }
     return 0;
 }
