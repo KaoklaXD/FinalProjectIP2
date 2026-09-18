@@ -28,4 +28,7 @@ Recommendation recommend_next_checkpoint(Graph* g, int current_checkpoint, int g
 // Backward compatible recommendation (uses overall seats or first round)
 Recommendation recommend_next_checkpoint_default(Graph* g, int current_checkpoint, int group_size);
 
+// Recommends an interim checkpoint to visit in current_round before returning to desired_target in a later round
+Recommendation recommend_interim_checkpoint(Graph* g, int current_cp, int desired_target, int group_size, int current_round);
+
 #endif

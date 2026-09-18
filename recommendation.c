@@ -153,3 +153,47 @@ Recommendation recommend_next_checkpoint(Graph* g, int current_checkpoint, int g
 Recommendation recommend_next_checkpoint_default(Graph* g, int current_checkpoint, int group_size) {
     return recommend_next_checkpoint(g, current_checkpoint, group_size, -1);
 }
+
+// Recommends an optimal interim checkpoint to visit during current_round before returning to desired_target in a later round
+Recommendation recommend_interim_checkpoint(Graph* g, int current_cp, int desired_target, int group_size, int current_round) {
+    Recommendation best_rec;
+    best_rec.is_split = 0;
+    best_rec.next_checkpoint_id = -1;
+    best_rec.selected_path_index = -1;
+    best_rec.score = INF;
+
+    if (!g || current_cp < 0 || current_cp >= g->num_checkpoints ||
+        desired_target < 0 || desired_target >= g->num_checkpoints) {
+        return best_rec;
+    }
+
+    for (int interim = 0; interim < g->num_checkpoints; interim++) {
+        if (interim == current_cp || interim == desired_target || interim == 0) continue;
+        if (g->nodes[interim].num_rounds <= 0) continue;
+
+        int avail = g->nodes[interim].available_seats;
+        int max_s = g->nodes[interim].max_seats;
+        if (current_round >= 0 && current_round < g->nodes[interim].num_rounds) {
+            avail = g->nodes[interim].rounds[current_round].available_seats;
+            max_s = g->nodes[interim].rounds[current_round].max_seats;
+        }
+
+        if (avail < group_size || max_s <= 0) continue;
+
+        Path p_curr_to_interim, p_interim_to_target;
+        if (!dijkstra_shortest_path(g, current_cp, interim, NULL, 0, &p_curr_to_interim)) continue;
+        if (!dijkstra_shortest_path(g, interim, desired_target, NULL, 0, &p_interim_to_target)) continue;
+
+        double occ = 1.0 - ((double)(avail - group_size) / (double)max_s);
+        double total_dist = p_curr_to_interim.total_distance + p_interim_to_target.total_distance;
+        double score = (ALPHA * total_dist) + (BETA * occ);
+
+        if (score < best_rec.score) {
+            best_rec.score = score;
+            best_rec.next_checkpoint_id = interim;
+            best_rec.selected_path_index = 0;
+        }
+    }
+
+    return best_rec;
+}

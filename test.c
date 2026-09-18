@@ -162,6 +162,16 @@ int main() {
     }
     printf("\n");
 
+    // 10. Test Smart Interim Checkpoint Recommendation (When desired room is full)
+    g->nodes[1].rounds[0].available_seats = 0; // Robotics is full in Round 0
+    g->nodes[1].rounds[1].available_seats = 20; // Robotics has space in Round 1
+    Recommendation interim_rec = recommend_interim_checkpoint(g, 0, 1, 5, 0);
+    assert(interim_rec.next_checkpoint_id != -1);
+    assert(interim_rec.next_checkpoint_id != 1);
+    assert(g->nodes[interim_rec.next_checkpoint_id].rounds[0].available_seats >= 5);
+    printf("[PASS] Interim recommendation verified: When chosen room (Robotics) is full in Round 1, recommends %s (Room %d) before returning in Round 2.\n",
+           g->nodes[interim_rec.next_checkpoint_id].name, g->nodes[interim_rec.next_checkpoint_id].room_num);
+
     // Cleanup
     free_graph(g);
     free_graph(g_reloaded);
