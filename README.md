@@ -17,7 +17,6 @@ To build individual binaries:
 ```bash
 make staff    # Builds staff administration executable
 make visitor  # Builds visitor guidance executable
-make test     # Builds automated test suite
 ```
 
 ---
@@ -104,29 +103,6 @@ Use this mode when you want to visit a specific set of exhibitions regardless of
 
 ---
 
-### Part 3: Automated Test Suite (`./test`)
-Run the comprehensive test suite verifying graph algorithms, capacity constraints, and optimization engines:
-```bash
-./test
-```
-Verifies:
-1. Dijkstra Shortest Path
-2. Yen's K-Shortest Paths
-3. Congestion Avoidance
-4. Group Splitting
-5. Checkpoint Storage Persistence
-6. Room Eligibility Validation
-7. Multi-Level Stair Transition Rule
-8. Smart Interim Recommendation
-9. Parallel Rounds & Empty Lunch Break
-10. Hungarian Algorithm ($O(k^3)$)
-11. DFS with Branch-and-Bound Pruning
-12. In-Memory RAM Optimizer
-13. Hungarian Fallback Suggestion
-14. Optimal Walking Tour Engine
-15. Fully Unavailable Checkpoint Detection
-16. Exact Order Feasibility Verification
-17. Capacity Conflict Hungarian Reordering
 
 ---
 
