@@ -1,6 +1,6 @@
 # KVIS Open House Smart Management System (FinalProjectIP2)
 
-A comprehensive graph-based campus navigation and smart exhibition scheduling system developed in C99 for Kamnoetvidya Science Academy (KVIS) Open House events.
+A comprehensive graph-based campus navigation and smart exhibition scheduling system developed in C for Kamnoetvidya Science Academy (KVIS) Open House events.
 
 ---
 
