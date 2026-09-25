@@ -7,7 +7,6 @@
 #define NUM_ROWS 29
 #define ROW_WIDTH 160
 
-/* Pure ASCII template for Level 3 (Third Floor) */
 static const char* BASE_MAP_L3[NUM_ROWS] = {
     "  ____________________________________________________________                    ____________________________________________________________",
     " |                                                            |                  |                                                            |",
@@ -40,7 +39,6 @@ static const char* BASE_MAP_L3[NUM_ROWS] = {
     " |___________________________________________________________________________________________________________________________________________|"
 };
 
-/* Pure ASCII template for Level 2 (Second Floor) */
 static const char* BASE_MAP_L2[NUM_ROWS] = {
     "  ____________________________________________________________                    ____________________________________________________________",
     " |                                                            |                  |                                                            |",
@@ -73,7 +71,6 @@ static const char* BASE_MAP_L2[NUM_ROWS] = {
     " |___________________________________________________________________________________________________________________________________________|"
 };
 
-/* Pure ASCII template for Level 1 (First Floor) */
 static const char* BASE_MAP_L1[NUM_ROWS] = {
     "  ____________________________________________________________                    ____________________________________________________________",
     " |                                                            |                  |                                                            |",
@@ -458,22 +455,20 @@ void visualize_floor_path(Graph* g, const Path* path, int floor_num) {
         int f_next = (i < path->node_count - 1) ? nfloors[i + 1] : f_curr;
 
         if (f_curr < f_next || f_prev < f_curr) {
-            nsymbols[i] = '+'; // UP
+            nsymbols[i] = '+';
         } else if (f_curr > f_next || f_prev > f_curr) {
-            nsymbols[i] = '-'; // DOWN
+            nsymbols[i] = '-';
         } else {
-            nsymbols[i] = '*'; // Walking on same floor
+            nsymbols[i] = '*';
         }
     }
 
-    // 1. Update corridors between adjacent nodes on this floor
     for (int i = 0; i < path->node_count - 1; i++) {
         if (nfloors[i] == floor_num && nfloors[i + 1] == floor_num) {
             update_corridors_for_edge(grid, floor_num, ncodes[i], ncodes[i + 1]);
         }
     }
 
-    // 2. Update node box representations for nodes on this floor
     for (int i = 0; i < path->node_count; i++) {
         if (nfloors[i] == floor_num) {
             const char* code = ncodes[i];

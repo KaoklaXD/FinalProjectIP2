@@ -105,3 +105,36 @@ Schedule Details:
   [Round 7] 15:00 - 16:00 : (Free Time / Open Campus Walk)
 ========================================================================
 
+========================================================================
+BOOKING: FREE EXPLORATION TOUR
+Group Name     : Tintin's Group
+Representative : Tintin
+Group Size     : 10 visitors
+Starting Point : Entry (Room 0)
+Total Distance : 190.0 meters
+Status         : CONFIRMED
+Optimal Tour Sequence:
+  Stop 1: Temp1 (Room 212)
+  Stop 2: Tintin_world (Room 313)
+  Stop 3: DreamLab (Room 112)
+  Stop 4: AI&Robotics (Room 122)
+  Stop 5: DanceExhibition (Room 103)
+  Stop 6: ArtGallery (Room 143)
+========================================================================
+
+========================================================================
+BOOKING: FREE EXPLORATION TOUR
+Group Name     : thanigga's Group
+Representative : thanigga
+Group Size     : 1 visitor
+Starting Point : Entry (Room 0)
+Total Distance : 150.0 meters
+Status         : CONFIRMED
+Optimal Tour Sequence:
+  Stop 1: Temp1 (Room 212)
+  Stop 2: DreamLab (Room 112)
+  Stop 3: AI&Robotics (Room 122)
+  Stop 4: DanceExhibition (Room 103)
+  Stop 5: ArtGallery (Room 143)
+========================================================================
+
