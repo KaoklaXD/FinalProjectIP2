@@ -3,5 +3,7 @@ test
 staff
 visitor
 test_bin
+Staff
+Visitor
 Staff_bin
 *.dSYM/

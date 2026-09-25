@@ -123,8 +123,16 @@ int load_checkpoints(const char* filename, Graph* g) {
                 g->nodes[current_id].rounds[r].round_id = round_idx;
                 g->nodes[current_id].rounds[r].start_time = start_t;
                 g->nodes[current_id].rounds[r].end_time = end_t;
-                g->nodes[current_id].rounds[r].max_seats = g->nodes[current_id].max_seats;
-                g->nodes[current_id].rounds[r].available_seats = (avail >= 0) ? avail : g->nodes[current_id].max_seats;
+
+                if (strstr(trimmed, "LUNCH") != NULL || (start_t >= 11.99 && end_t <= 13.01 && (avail == 0 || matched == 3))) {
+                    g->nodes[current_id].rounds[r].is_lunch_break = 1;
+                    g->nodes[current_id].rounds[r].max_seats = 0;
+                    g->nodes[current_id].rounds[r].available_seats = 0;
+                } else {
+                    g->nodes[current_id].rounds[r].is_lunch_break = 0;
+                    g->nodes[current_id].rounds[r].max_seats = g->nodes[current_id].max_seats;
+                    g->nodes[current_id].rounds[r].available_seats = (avail >= 0) ? avail : g->nodes[current_id].max_seats;
+                }
                 g->nodes[current_id].available_seats = g->nodes[current_id].rounds[0].available_seats;
             }
         } else if (strncmp(trimmed, "END_CHECKPOINT", 14) == 0) {
@@ -153,11 +161,18 @@ int save_checkpoints(const char* filename, Graph* g) {
                 g->nodes[i].room_num);
 
         for (int r = 0; r < g->nodes[i].num_rounds; r++) {
-            fprintf(fp, "ROUND %d %.2f %.2f %d\n",
-                    g->nodes[i].rounds[r].round_id,
-                    g->nodes[i].rounds[r].start_time,
-                    g->nodes[i].rounds[r].end_time,
-                    g->nodes[i].rounds[r].available_seats);
+            if (g->nodes[i].rounds[r].is_lunch_break) {
+                fprintf(fp, "ROUND %d %.2f %.2f 0 LUNCH\n",
+                        g->nodes[i].rounds[r].round_id,
+                        g->nodes[i].rounds[r].start_time,
+                        g->nodes[i].rounds[r].end_time);
+            } else {
+                fprintf(fp, "ROUND %d %.2f %.2f %d\n",
+                        g->nodes[i].rounds[r].round_id,
+                        g->nodes[i].rounds[r].start_time,
+                        g->nodes[i].rounds[r].end_time,
+                        g->nodes[i].rounds[r].available_seats);
+            }
         }
         fprintf(fp, "END_CHECKPOINT\n\n");
     }
@@ -250,4 +265,26 @@ int is_valid_checkpoint_room(const char* name, int room_num) {
     }
 
     return 0;
+}
+
+int get_activity_rounds(Graph* g, int* round_indices, int max_out) {
+    if (!g || !round_indices || max_out <= 0) return 0;
+    int ref_node = -1;
+    for (int i = 0; i < g->num_checkpoints; i++) {
+        if (g->nodes[i].num_rounds > 0) {
+            ref_node = i;
+            break;
+        }
+    }
+    if (ref_node == -1) return 0;
+
+    int count = 0;
+    for (int r = 0; r < g->nodes[ref_node].num_rounds; r++) {
+        if (!g->nodes[ref_node].rounds[r].is_lunch_break) {
+            if (count < max_out) {
+                round_indices[count++] = r;
+            }
+        }
+    }
+    return count;
 }

@@ -129,17 +129,49 @@ int add_new_checkpoint(const char *filename) {
         return 0;
     }
 
+    printf("\nRound Schedule Option:\n");
+    printf(" [1] Apply Synchronized Parallel Schedule (7 rounds, equal start/final, Round 4 Lunch Break)\n");
+    printf(" [2] Manual Custom Entry\n");
+    printf("Select (1 or 2): ");
+    int sched_choice = 1;
+    if (scanf("%d", &sched_choice) != 1) sched_choice = 1;
+
     double starttime[MAX_ROUNDS];
     double endtime[MAX_ROUNDS];
+    int is_lunch[MAX_ROUNDS] = {0};
 
-    for (int i = 0; i < round_num; i++) {
-        char prompt[128];
-        printf("\n--- Round %d Configuration ---\n", i + 1);
-        snprintf(prompt, sizeof(prompt), "Enter Round %d START time (HH:MM): ", i + 1);
-        read_time_hhmm(prompt, &starttime[i]);
+    if (sched_choice == 1) {
+        round_num = 7;
+        double default_starts[7] = {9.00, 10.00, 11.00, 12.00, 13.00, 14.00, 15.00};
+        double default_ends[7]   = {10.00, 11.00, 12.00, 13.00, 14.00, 15.00, 16.00};
+        for (int i = 0; i < 7; i++) {
+            starttime[i] = default_starts[i];
+            endtime[i] = default_ends[i];
+            if (i == 3) is_lunch[i] = 1; // Round 4 is Lunch Break
+        }
+        printf("\n[Applied] Synchronized Parallel Schedule applied (6 activity rounds + Round 4 Lunch Break).\n");
+    } else {
+        printf("Enter number of rounds (1-%d): ", MAX_ROUNDS);
+        if (scanf("%d", &round_num) != 1 || round_num <= 0 || round_num > MAX_ROUNDS) {
+            printf("[Error] Invalid round count.\n");
+            return 0;
+        }
 
-        snprintf(prompt, sizeof(prompt), "Enter Round %d END time   (HH:MM): ", i + 1);
-        read_time_hhmm(prompt, &endtime[i]);
+        for (int i = 0; i < round_num; i++) {
+            char prompt[128];
+            printf("\n--- Round %d Configuration ---\n", i + 1);
+            snprintf(prompt, sizeof(prompt), "Enter Round %d START time (HH:MM): ", i + 1);
+            read_time_hhmm(prompt, &starttime[i]);
+
+            snprintf(prompt, sizeof(prompt), "Enter Round %d END time   (HH:MM): ", i + 1);
+            read_time_hhmm(prompt, &endtime[i]);
+
+            printf("Is this round a Lunch Break / empty section? (1 = Yes, 0 = No): ");
+            int lb = 0;
+            if (scanf("%d", &lb) == 1 && lb == 1) {
+                is_lunch[i] = 1;
+            }
+        }
     }
 
     // Append to checkpoints.txt
@@ -151,7 +183,11 @@ int add_new_checkpoint(const char *filename) {
 
     fprintf(fp, "CHECKPOINT %d %s %d %d %d\n", id, name, round_num, max_seat, roomnum);
     for (int i = 0; i < round_num; i++) {
-        fprintf(fp, "ROUND %d %.2f %.2f %d\n", i + 1, starttime[i], endtime[i], max_seat);
+        if (is_lunch[i]) {
+            fprintf(fp, "ROUND %d %.2f %.2f 0 LUNCH\n", i + 1, starttime[i], endtime[i]);
+        } else {
+            fprintf(fp, "ROUND %d %.2f %.2f %d\n", i + 1, starttime[i], endtime[i], max_seat);
+        }
     }
     fprintf(fp, "END_CHECKPOINT\n\n");
     fclose(fp);

@@ -21,4 +21,7 @@ int get_or_create_node(Graph* g, const char* name);
 // Checks whether a room qualifies as a valid checkpoint (room with number or 'audi')
 int is_valid_checkpoint_room(const char* name, int room_num);
 
+// Returns the list of round indices (0-indexed) that are valid activity rounds (ignoring lunch break)
+int get_activity_rounds(Graph* g, int* round_indices, int max_out);
+
 #endif

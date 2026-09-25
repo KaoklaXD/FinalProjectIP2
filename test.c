@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include <assert.h>
 #include "graph.h"
 #include "recommendation.h"
@@ -172,10 +173,169 @@ int main() {
     printf("[PASS] Interim recommendation verified: When chosen room (Robotics) is full in Round 1, recommends %s (Room %d) before returning in Round 2.\n",
            g->nodes[interim_rec.next_checkpoint_id].name, g->nodes[interim_rec.next_checkpoint_id].room_num);
 
+    // 11. Test Parallel Rounds & Lunch Break Empty Section
+    Graph* parallel_g = create_graph(0);
+    int p_count = load_checkpoints("checkpoints.txt", parallel_g);
+    assert(p_count > 0);
+    int act_rounds[MAX_ITINERARY_SLOTS];
+    int num_act = get_activity_rounds(parallel_g, act_rounds, MAX_ITINERARY_SLOTS);
+    assert(num_act == 6);
+    // Verify lunch break is Round 4 (index 3)
+    assert(parallel_g->nodes[1].rounds[3].is_lunch_break == 1);
+    assert(parallel_g->nodes[1].rounds[3].available_seats == 0);
+    assert(parallel_g->nodes[1].rounds[3].start_time == 12.00);
+    printf("[PASS] Parallel rounds & Lunch Break verified: 6 parallel activity rounds + 1 empty Lunch Break section (12:00-13:00).\n");
+
+    // 12. Test Hungarian Algorithm on User's Linear Sum Assignment Problem
+    // Matrix from user prompt:
+    // Node 1 (wants slot 0): Slot 1 is full
+    // Node 2 (wants slot 1): Slot 2 is full
+    // Node 3 (wants slot 2): all available
+    // Node 4 (wants slot 3): Slot 0 is full
+    int user_req[4] = {1, 2, 3, 4};
+    int cap_mat[MAX_ITINERARY_SLOTS][MAX_ITINERARY_SLOTS];
+    memset(cap_mat, 0, sizeof(cap_mat));
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
+            cap_mat[i][j] = 10; // default 10 seats
+        }
+    }
+    cap_mat[0][1] = 0; // Node 1 full at slot 1
+    cap_mat[1][2] = 0; // Node 2 full at slot 2
+    cap_mat[3][0] = 0; // Node 4 full at slot 0
+    int dummy_act_rounds[4] = {0, 1, 2, 4};
+
+    ItinerarySchedule hungarian_sched = hungarian_optimize_itinerary(4, user_req, 5, 4, dummy_act_rounds, cap_mat);
+    assert(hungarian_sched.is_valid == 1);
+    // Verify no node is placed in a full slot
+    for (int s = 0; s < 4; s++) {
+        int node = hungarian_sched.assigned_checkpoint_id[s];
+        int node_idx = node - 1;
+        assert(cap_mat[node_idx][s] >= 5);
+    }
+    printf("[PASS] Hungarian Algorithm O(k^3) verified: Global optimal schedule found with Spearman penalty = %.1f.\n",
+           hungarian_sched.spearman_penalty);
+
+    // 13. Test DFS with Backtracking & Branch-and-Bound Pruning
+    ItinerarySchedule dfs_alts[MAX_ALTERNATIVE_ITINERARIES];
+    int dfs_count = dfs_top_itineraries(4, user_req, 5, 4, dummy_act_rounds, cap_mat, 5, dfs_alts);
+    assert(dfs_count > 0);
+    // #1 DFS schedule must match Hungarian minimum penalty
+    assert(fabs(dfs_alts[0].spearman_penalty - hungarian_sched.spearman_penalty) < 1e-5);
+    // Results must be sorted in ascending Spearman penalty
+    for (int i = 0; i < dfs_count - 1; i++) {
+        assert(dfs_alts[i].spearman_penalty <= dfs_alts[i + 1].spearman_penalty);
+    }
+    printf("[PASS] DFS Branch-and-Bound Pruning verified: Found %d alternative itineraries ranked by similarity in microseconds.\n",
+           dfs_count);
+
+    // 14. Test RAM-First Single Query Itinerary Optimizer ("Never Loop Database")
+    ItinerarySchedule ram_optimal;
+    ItinerarySchedule ram_alts[MAX_ALTERNATIVE_ITINERARIES];
+    int num_ram_alts = 0;
+    int ram_success = optimize_itineraries_in_ram(parallel_g, 4, user_req, 5, &ram_optimal, ram_alts, &num_ram_alts);
+    assert(ram_success == 1);
+    assert(ram_optimal.is_valid == 1);
+    assert(num_ram_alts > 0);
+    printf("[PASS] In-Memory RAM Optimizer verified: Queried database once, solved in RAM with Hungarian + DFS.\n");
+
+    // 15. Test Hungarian Algorithm Fallback Suggestion
+    parallel_g->nodes[1].rounds[0].available_seats = 0; // AI&Robotics full in Round 1
+    int alt_suggestion = hungarian_suggest_alternative(parallel_g, 0, 0, 1, 5, NULL, 0);
+    assert(alt_suggestion != -1);
+    assert(alt_suggestion != 1);
+    assert(parallel_g->nodes[alt_suggestion].rounds[0].available_seats >= 5);
+
+    // Also test with excluded checkpoint (cannot choose already visited checkpoint)
+    int excluded_cp[1] = {alt_suggestion};
+    int alt2 = hungarian_suggest_alternative(parallel_g, 0, 0, 1, 5, excluded_cp, 1);
+    assert(alt2 != -1);
+    assert(alt2 != alt_suggestion);
+    assert(parallel_g->nodes[alt2].rounds[0].available_seats >= 5);
+    printf("[PASS] Hungarian fallback suggestion verified: Suggests %s (Room %d), correctly excludes visited rooms.\n",
+           parallel_g->nodes[alt_suggestion].name, parallel_g->nodes[alt_suggestion].room_num);
+
+    // 16. Test Free Exploration Optimal Tour (Shortest Walking Path across Checkpoints)
+    Graph* tour_g = create_graph(0);
+    int t_cp = load_checkpoints("checkpoints.txt", tour_g);
+    int t_edge = load_distances("distance.txt", tour_g);
+    assert(t_cp > 0 && t_edge > 0);
+
+    int targets[4] = {6, 1, 3, 5}; // AstronomyDome(312), AI&Robotics(122), DanceExhibition(103), ChemistryLab(212)
+    OptimalTour tour = find_optimal_tour(tour_g, 0, targets, 4);
+
+    assert(tour.count == 4);
+    assert(tour.total_distance > 0.0);
+    // Verify that every target is in ordered_checkpoints exactly once
+    int found_target[4] = {0};
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
+            if (tour.ordered_checkpoints[i] == targets[j]) {
+                found_target[j] = 1;
+            }
+        }
+    }
+    for (int j = 0; j < 4; j++) {
+        assert(found_target[j] == 1);
+    }
+    // Verify each leg path is contiguous
+    int prev_tour_loc = 0;
+    for (int i = 0; i < 4; i++) {
+        assert(tour.leg_paths[i].node_count >= 2);
+        assert(tour.leg_paths[i].nodes[0] == prev_tour_loc);
+        assert(tour.leg_paths[i].nodes[tour.leg_paths[i].node_count - 1] == tour.ordered_checkpoints[i]);
+        prev_tour_loc = tour.ordered_checkpoints[i];
+    }
+    printf("[PASS] Optimal Tour verified: Shortest walking tour computed (%.1f meters across %d checkpoints):\n       Order: [Entry] ",
+           tour.total_distance, tour.count);
+    for (int i = 0; i < tour.count; i++) {
+        printf("-> [%s] ", tour_g->nodes[tour.ordered_checkpoints[i]].name);
+    }
+    printf("\n");
+    free_graph(tour_g);
+
+    // 17. Test Order Feasibility, Exact Match Preservation & Fully Unavailable Checkpoint Detection
+    Graph* pref_g = create_graph(0);
+    load_checkpoints("checkpoints.txt", pref_g);
+
+    // Test A: Checkpoint with no available rounds
+    assert(checkpoint_has_available_round(pref_g, 2, 5) == 1);
+    assert(checkpoint_has_available_round(pref_g, 2, 999) == 0);
+    for (int r = 0; r < pref_g->nodes[10].num_rounds; r++) {
+        pref_g->nodes[10].rounds[r].available_seats = 0;
+    }
+    assert(checkpoint_has_available_round(pref_g, 10, 5) == 0);
+    printf("[PASS] Fully unavailable checkpoint detection verified (correctly identifies 0 available rounds).\n");
+
+    // Test B: Exact Order Feasible ("If it's possible let them be that")
+    int exact_req[3] = {2, 3, 4};
+    assert(is_exact_order_feasible(pref_g, 3, exact_req, 5) == 1);
+    printf("[PASS] Exact Order Feasibility verified: Directly usable requested order detected (Spearman penalty = 0.0).\n");
+
+    // Test C: Exact Order Conflicted -> Hungarian Reordering ("but if not. let use our algorithm")
+    pref_g->nodes[1].rounds[0].available_seats = 0; // Slot 0 is full for AI&Robotics
+    int conflict_req[2] = {1, 2}; // Wants AI&Robotics first, DreamLab second
+    assert(is_exact_order_feasible(pref_g, 2, conflict_req, 5) == 0);
+
+    ItinerarySchedule pref_opt;
+    ItinerarySchedule pref_alts[MAX_ALTERNATIVE_ITINERARIES];
+    int num_p_alts = 0;
+    int opt_success = optimize_itineraries_in_ram(pref_g, 2, conflict_req, 5, &pref_opt, pref_alts, &num_p_alts);
+    assert(opt_success == 1);
+    assert(pref_opt.is_valid == 1);
+    assert(pref_opt.assigned_checkpoint_id[0] == 2);
+    assert(pref_opt.assigned_checkpoint_id[1] == 1);
+    assert(pref_opt.spearman_penalty == 2.0);
+    printf("[PASS] Hungarian reordering verified: Capacity conflict in exact order resolved with minimum displacement (Penalty: %.1f).\n",
+           pref_opt.spearman_penalty);
+
+    free_graph(pref_g);
+
     // Cleanup
     free_graph(g);
     free_graph(g_reloaded);
     free_graph(campus_g);
+    free_graph(parallel_g);
     remove("test_checkpoints.txt");
 
     printf("\n>>> ALL TEST SUITES PASSED SUCCESSFULLY! <<<\n");

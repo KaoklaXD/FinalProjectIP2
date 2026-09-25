@@ -2,7 +2,7 @@
 #define GRAPH_H
 
 #define MAX_CHECKPOINTS 100
-#define MAX_ROUNDS 10
+#define MAX_ROUNDS 15
 #define INF 1e9
 
 typedef struct Edge {
@@ -18,6 +18,7 @@ typedef struct Round {
     double end_time;      // e.g. 12.50 = 12:30
     int max_seats;
     int available_seats;
+    int is_lunch_break;   // 1 if lunch break (empty section), 0 if regular activity round
 } Round;
 
 typedef struct Checkpoint {
