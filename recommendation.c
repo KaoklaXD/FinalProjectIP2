@@ -8,10 +8,9 @@
 #include "recommendation.h"
 
 #define K_PATHS 5
-#define ALPHA 1.0   // Distance weight factor (meters)
-#define BETA 50.0   // Seat congestion penalty weight factor
+#define ALPHA 1.0
+#define BETA 50.0
 
-// Calculates fitness score for a path based on distance, group size, and availability
 double calculate_path_score(Graph* g, Path path, int group_size, int round_idx) {
     if (!g || path.node_count <= 0) return INF;
     int target_node = path.nodes[path.node_count - 1];
@@ -26,22 +25,18 @@ double calculate_path_score(Graph* g, Path path, int group_size, int round_idx) 
         max_s = cp.rounds[round_idx].max_seats;
     }
 
-    // Safety constraint: Must have enough available seats
     if (avail < group_size || max_s <= 0) {
-        return INF; 
+        return INF;
     }
 
-    // Post-visit Congestion Ratio (0 = empty, 1 = full)
     double occupancy = 1.0 - ((double)(avail - group_size) / (double)max_s);
     if (occupancy < 0.0) occupancy = 0.0;
     if (occupancy > 1.0) occupancy = 1.0;
-    
-    // Total Cost = Distance Weight + Congestion Weight
+
     double score = (ALPHA * path.total_distance) + (BETA * occupancy);
     return score;
 }
 
-// "Recommend Next Checkpoint" with capacity filtering, round awareness, and split options
 Recommendation recommend_next_checkpoint(Graph* g, int current_checkpoint, int group_size, int round_idx) {
     Recommendation best_rec;
     best_rec.is_split = 0;
@@ -58,10 +53,9 @@ Recommendation recommend_next_checkpoint(Graph* g, int current_checkpoint, int g
         return best_rec;
     }
 
-    // Phase 1: Try to accommodate the entire group together
     for (int target = 0; target < g->num_checkpoints; target++) {
         if (target == current_checkpoint) continue;
-        // Only consider valid activity checkpoints (ignore hallway waypoints and entrance)
+
         if (g->nodes[target].num_rounds <= 0 || target == 0) continue;
 
         int avail = g->nodes[target].available_seats;
@@ -69,7 +63,6 @@ Recommendation recommend_next_checkpoint(Graph* g, int current_checkpoint, int g
             avail = g->nodes[target].rounds[round_idx].available_seats;
         }
 
-        // HARD FILTER: Check if checkpoint can accommodate full group
         if (avail < group_size) {
             continue;
         }
@@ -77,12 +70,11 @@ Recommendation recommend_next_checkpoint(Graph* g, int current_checkpoint, int g
         Path candidate_paths[K_PATHS];
         int path_count = 0;
 
-        // Run K-shortest paths to obtain candidate routes to target checkpoint
         k_shortest_paths(g, current_checkpoint, target, K_PATHS, candidate_paths, &path_count);
 
         for (int p = 0; p < path_count; p++) {
             double score = calculate_path_score(g, candidate_paths[p], group_size, round_idx);
-            
+
             if (score < best_rec.score && score < INF) {
                 best_rec.score = score;
                 best_rec.next_checkpoint_id = target;
@@ -91,12 +83,10 @@ Recommendation recommend_next_checkpoint(Graph* g, int current_checkpoint, int g
         }
     }
 
-    // If an entire-group recommendation was found, return it
     if (best_rec.next_checkpoint_id != -1) {
         return best_rec;
     }
 
-    // Phase 2: If group cannot fit in any single checkpoint, search for an optimal SplitOption
     if (group_size > 1) {
         double best_split_score = INF;
         SplitOption best_split = {-1, 0, -1, 0, INF};
@@ -153,12 +143,10 @@ Recommendation recommend_next_checkpoint(Graph* g, int current_checkpoint, int g
     return best_rec;
 }
 
-// Backward-compatible fallback
 Recommendation recommend_next_checkpoint_default(Graph* g, int current_checkpoint, int group_size) {
     return recommend_next_checkpoint(g, current_checkpoint, group_size, -1);
 }
 
-// Recommends an optimal interim checkpoint to visit during current_round before returning to desired_target in a later round
 Recommendation recommend_interim_checkpoint(Graph* g, int current_cp, int desired_target, int group_size, int current_round) {
     Recommendation best_rec;
     best_rec.is_split = 0;
@@ -204,7 +192,6 @@ Recommendation recommend_interim_checkpoint(Graph* g, int current_cp, int desire
 
 #define HUNGARIAN_PENALTY_INF 1e6
 
-// Kuhn-Munkres (Hungarian Algorithm) O(N^3) implementation
 static double solve_hungarian_matrix(int n, double cost[MAX_ITINERARY_SLOTS + 1][MAX_ITINERARY_SLOTS + 1], int match_row_of_col[MAX_ITINERARY_SLOTS + 1]) {
     double u[MAX_ITINERARY_SLOTS + 1] = {0};
     double v[MAX_ITINERARY_SLOTS + 1] = {0};
@@ -297,7 +284,7 @@ ItinerarySchedule hungarian_optimize_itinerary(
                     cost[i][j] = fabs((double)(chk_idx - slot_idx));
                 }
             } else {
-                cost[i][j] = 0.0; // Dummy row for unassigned slots
+                cost[i][j] = 0.0;
             }
         }
     }
@@ -314,7 +301,7 @@ ItinerarySchedule hungarian_optimize_itinerary(
         if (row <= k) {
             int chk_idx = row - 1;
             if (cost[row][j] >= HUNGARIAN_PENALTY_INF / 2.0) {
-                valid = 0; // Capacity was violated
+                valid = 0;
             }
             sched.assigned_checkpoint_id[slot_idx] = requested_checkpoints[chk_idx];
             total_penalty += fabs((double)(chk_idx - slot_idx));
@@ -357,7 +344,6 @@ static void dfs_search(DFSContext* ctx, int depth, double current_penalty) {
             }
         }
 
-        // Check for duplicate in options
         for (int opt = 0; opt < ctx->options_count; opt++) {
             int identical = 1;
             for (int s = 0; s < ctx->num_slots; s++) {
@@ -369,7 +355,6 @@ static void dfs_search(DFSContext* ctx, int depth, double current_penalty) {
             if (identical) return;
         }
 
-        // Insert sorted by penalty ascending
         int insert_pos = ctx->options_count;
         while (insert_pos > 0 && ctx->options[insert_pos - 1].spearman_penalty > candidate.spearman_penalty) {
             if (insert_pos < ctx->max_options) {
@@ -386,7 +371,6 @@ static void dfs_search(DFSContext* ctx, int depth, double current_penalty) {
         return;
     }
 
-    // Bound Prune: if options list is full and current_penalty >= worst penalty, stop exploring
     if (ctx->options_count == ctx->max_options && current_penalty >= ctx->options[ctx->max_options - 1].spearman_penalty) {
         return;
     }
@@ -395,7 +379,6 @@ static void dfs_search(DFSContext* ctx, int depth, double current_penalty) {
     for (int j = 0; j < ctx->num_slots; j++) {
         if (ctx->slot_used[j]) continue;
 
-        // Capacity Prune: abort immediately if room does not have enough seats in this slot
         if (ctx->capacity_matrix[chk_idx][j] < ctx->group_size) {
             continue;
         }
@@ -403,7 +386,6 @@ static void dfs_search(DFSContext* ctx, int depth, double current_penalty) {
         double step_penalty = fabs((double)(chk_idx - j));
         double new_penalty = current_penalty + step_penalty;
 
-        // Bound Prune: abort if penalty already exceeds bound
         if (ctx->options_count == ctx->max_options && new_penalty >= ctx->options[ctx->max_options - 1].spearman_penalty) {
             continue;
         }
@@ -476,7 +458,6 @@ int optimize_itineraries_in_ram(
         return 0;
     }
 
-    // Step 1: In-memory capacity extraction ("Never loop your database")
     int capacity_matrix[MAX_ITINERARY_SLOTS][MAX_ITINERARY_SLOTS];
     memset(capacity_matrix, 0, sizeof(capacity_matrix));
 
@@ -495,12 +476,10 @@ int optimize_itineraries_in_ram(
         }
     }
 
-    // Step 2: Hungarian algorithm for global minimum Spearman penalty
     *optimal_schedule = hungarian_optimize_itinerary(
         k, requested_checkpoints, group_size, num_slots, act_rounds, capacity_matrix
     );
 
-    // Step 3: DFS with Branch-and-Bound Pruning for Top-M alternative itineraries
     *num_alternatives = dfs_top_itineraries(
         k, requested_checkpoints, group_size, num_slots, act_rounds, capacity_matrix,
         MAX_ALTERNATIVE_ITINERARIES, alternatives
@@ -519,7 +498,6 @@ int hungarian_suggest_alternative(Graph* g, int current_loc, int round_idx, int 
         if (round_idx >= g->nodes[i].num_rounds) continue;
         if (g->nodes[i].rounds[round_idx].is_lunch_break) continue;
 
-        // Check if excluded / already visited in other rounds
         int is_excluded = 0;
         if (excluded_checkpoints && num_excluded > 0) {
             for (int e = 0; e < num_excluded; e++) {

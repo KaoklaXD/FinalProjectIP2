@@ -1,0 +1,30 @@
+========================================================================
+BOOKING: ITINERARY PLAN
+Group Name     : Wood's Group
+Representative : Wood
+Group Size     : 4 visitors
+Status         : CONFIRMED
+Schedule Details:
+  [Round 1] 09:00 - 10:00 : AI&Robotics (Room 122)
+  [Round 2] 10:00 - 11:00 : DreamLab (Room 112)
+  [Round 3] 11:00 - 12:00 : DanceExhibition (Room 103)
+  [Round 4] 12:00 - 13:00 : LUNCH BREAK (Empty Section)
+  [Round 5] 13:00 - 14:00 : ArtGallery (Room 143)
+  [Round 6] 14:00 - 15:00 : Temp1 (Room 212)
+  [Round 7] 15:00 - 16:00 : Temp2 (Room 312)
+========================================================================
+
+========================================================================
+BOOKING: FREE EXPLORATION TOUR
+Group Name     : Wood's Group
+Representative : Wood
+Group Size     : 4 visitors
+Starting Point : Entry (Room 0)
+Total Distance : 40.0 meters
+Status         : CONFIRMED
+Optimal Tour Sequence:
+  Stop 1: AI&Robotics (Room 122)
+  Stop 2: DreamLab (Room 112)
+  Stop 3: DanceExhibition (Room 103)
+========================================================================
+

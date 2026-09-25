@@ -1,0 +1,107 @@
+========================================================================
+BOOKING: FREE EXPLORATION TOUR
+Group Name     : Geforce's Group
+Representative : Geforce
+Group Size     : 10 visitors
+Starting Point : Entry (Room 0)
+Total Distance : 180.0 meters
+Status         : CONFIRMED
+Optimal Tour Sequence:
+  Stop 1: ArtGallery (Room 143)
+  Stop 2: DanceExhibition (Room 103)
+  Stop 3: AI&Robotics (Room 122)
+  Stop 4: DreamLab (Room 112)
+  Stop 5: Tintin_world (Room 313)
+  Stop 6: Temp2 (Room 312)
+========================================================================
+
+========================================================================
+BOOKING: ITINERARY PLAN
+Group Name     : PangPond's Group
+Representative : PangPond
+Group Size     : 20 visitors
+Status         : CONFIRMED
+Schedule Details:
+  [Round 1] 09:00 - 10:00 : DreamLab (Room 112)
+  [Round 2] 10:00 - 11:00 : AI&Robotics (Room 122)
+  [Round 3] 11:00 - 12:00 : DanceExhibition (Room 103)
+  [Round 4] 12:00 - 13:00 : LUNCH BREAK (Empty Section)
+  [Round 5] 13:00 - 14:00 : Temp1 (Room 212)
+  [Round 6] 14:00 - 15:00 : Temp2 (Room 312)
+  [Round 7] 15:00 - 16:00 : ArtGallery (Room 143)
+========================================================================
+
+========================================================================
+BOOKING: ITINERARY PLAN
+Group Name     : Chicky's Group
+Representative : Chicky
+Group Size     : 2 visitors
+Status         : CONFIRMED
+Schedule Details:
+  [Round 1] 09:00 - 10:00 : AI&Robotics (Room 122)
+  [Round 2] 10:00 - 11:00 : Temp1 (Room 212)
+  [Round 3] 11:00 - 12:00 : DanceExhibition (Room 103)
+  [Round 4] 12:00 - 13:00 : LUNCH BREAK (Empty Section)
+  [Round 5] 13:00 - 14:00 : DreamLab (Room 112)
+  [Round 6] 14:00 - 15:00 : ArtGallery (Room 143)
+  [Round 7] 15:00 - 16:00 : Tintin_world (Room 313)
+========================================================================
+
+========================================================================
+BOOKING: FREE EXPLORATION TOUR
+Group Name     : Visitor1's Group
+Representative : Visitor1
+Group Size     : 2 visitors
+Starting Point : Entry (Room 0)
+Total Distance : 60.0 meters
+Status         : CONFIRMED
+Optimal Tour Sequence:
+  Stop 1: AI&Robotics (Room 122)
+  Stop 2: DreamLab (Room 112)
+========================================================================
+
+========================================================================
+BOOKING: FREE EXPLORATION TOUR
+Group Name     : Us's Group
+Representative : Us
+Group Size     : 10 visitors
+Starting Point : Entry (Room 0)
+Total Distance : 190.0 meters
+Status         : CONFIRMED
+Optimal Tour Sequence:
+  Stop 1: Temp1 (Room 212)
+  Stop 2: Tintin_world (Room 313)
+  Stop 3: DreamLab (Room 112)
+  Stop 4: AI&Robotics (Room 122)
+  Stop 5: DanceExhibition (Room 103)
+  Stop 6: ArtGallery (Room 143)
+========================================================================
+
+========================================================================
+BOOKING: FREE EXPLORATION TOUR
+Group Name     : guy's Group
+Representative : guy
+Group Size     : 12313123 visitors
+Starting Point : AI&Robotics (Room 122)
+Total Distance : 60.0 meters
+Status         : CONFIRMED
+Optimal Tour Sequence:
+  Stop 1: 222 (Room 0)
+========================================================================
+
+========================================================================
+BOOKING: ITINERARY PLAN
+Group Name     : 213's Group
+Representative : 213
+Group Size     : 123 visitors
+Status         : CONFIRMED
+Schedule Details:
+  [Round 1] 09:00 - 10:00 : (Free Time / Open Campus Walk)
+  [Round 2] 10:00 - 11:00 : (Free Time / Open Campus Walk)
+  [Round 3] 11:00 - 12:00 : (Free Time / Open Campus Walk)
+  [Round 4] 12:00 - 13:00 : LUNCH BREAK (Empty Section)
+  [Round 5] 13:00 - 14:00 : (Free Time / Open Campus Walk)
+  [Round 6] 14:00 - 15:00 : (Free Time / Open Campus Walk)
+  [Round 7] 15:00 - 16:00 : (Free Time / Open Campus Walk)
+========================================================================
+

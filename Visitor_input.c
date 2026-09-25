@@ -4,6 +4,7 @@
 #include "graph.h"
 #include "recommendation.h"
 #include "storage.h"
+#include "map_visualizer.h"
 
 static void print_header() {
     printf("\n========================================================\n");
@@ -19,7 +20,7 @@ static void display_round_checkpoints(Graph* g, int round_idx, const int* assign
 
     for (int i = 0; i < g->num_checkpoints; i++) {
         if (strlen(g->nodes[i].name) == 0 || g->nodes[i].num_rounds == 0 || i == 0) continue;
-        
+
         int avail = g->nodes[i].available_seats;
         int max_s = g->nodes[i].max_seats;
         if (round_idx >= 0 && round_idx < g->nodes[i].num_rounds) {
@@ -27,7 +28,6 @@ static void display_round_checkpoints(Graph* g, int round_idx, const int* assign
             max_s = g->nodes[i].rounds[round_idx].max_seats;
         }
 
-        // Check if already selected in any earlier or other round
         int prev_round = -1;
         if (assigned_checkpoints) {
             for (int pr = 0; pr < total_rounds; pr++) {
@@ -65,7 +65,7 @@ static void display_all_checkpoints_for_tour(Graph* g) {
     printf("----+----------------------+------+---------+-------------------\n");
     for (int i = 0; i < g->num_checkpoints; i++) {
         if (strlen(g->nodes[i].name) == 0 || g->nodes[i].num_rounds == 0 || i == 0) continue;
-        
+
         int floor_num = g->nodes[i].room_num / 100;
         char floor_str[16];
         if (floor_num > 0) {
@@ -122,7 +122,7 @@ static void print_confirmed_summary(Graph* g, const char* group_name, const char
     printf(" Group Name     : %s\n", group_name);
     printf(" Representative : %s\n", member_name);
     printf(" Group Size     : %d visitor%s\n", group_size, (group_size > 1 ? "s" : ""));
-    printf(" Booking Status : CONFIRMED & SAVED TO checkpoints.txt\n");
+    printf(" Booking Status : CONFIRMED & LOGGED TO visitor_bookings.txt\n");
     printf("------------------------------------------------------------------------\n");
 
     for (int r = 0; r < total_rounds; r++) {
@@ -147,14 +147,13 @@ static void print_confirmed_summary(Graph* g, const char* group_name, const char
     }
     printf("========================================================================\n");
 
-    // Optional Route Guidance
     printf("\nDo you want walking route guidance between your scheduled checkpoints?\n");
     printf(" [1] Yes (Show step-by-step route)\n");
     printf(" [2] No\n");
     printf("Select: ");
     int want_guidance = 1;
     if (scanf("%d", &want_guidance) == 1 && want_guidance == 1) {
-        int prev_loc = 0; // Entry
+        int prev_loc = 0;
         printf("\n--- WALKING ITINERARY GUIDANCE ---\n");
         for (int r = 0; r < total_rounds; r++) {
             int cp_id = assigned_checkpoints[r];
@@ -168,6 +167,7 @@ static void print_confirmed_summary(Graph* g, const char* group_name, const char
                         printf("[%s]%s", g->nodes[nav.nodes[n]].name, (n < nav.node_count - 1 ? " ──> " : ""));
                     }
                     printf("\n");
+                    visualize_path(g, &nav);
                 }
                 prev_loc = cp_id;
             }
@@ -225,8 +225,6 @@ static void handle_preference_based_itinerary(Graph* g, const char* member_name,
         }
     }
 
-    // 1. Check if any checkpoint has NO available rounds today
-    // "if they is no possible round for some checkpoints asked them to choose other instead of that checkpoints or be a freetime instead."
     for (int i = 0; i < k; i++) {
         if (requested[i] == -1) continue;
         while (requested[i] != -1 && !checkpoint_has_available_round(g, requested[i], group_size)) {
@@ -277,7 +275,6 @@ static void handle_preference_based_itinerary(Graph* g, const char* member_name,
         }
     }
 
-    // 2. Extract active requested checkpoints
     int active_req[MAX_ITINERARY_SLOTS];
     int active_count = 0;
     for (int i = 0; i < k; i++) {
@@ -294,12 +291,10 @@ static void handle_preference_based_itinerary(Graph* g, const char* member_name,
     final_sched.spearman_penalty = 0.0;
     final_sched.is_valid = 1;
 
-    // 3. Check order feasibility:
-    // "does you check the order of checkpoints that they choose can be use or not? If it's possible let them be that but if not. let use our algorithm."
     if (active_count == 0) {
         printf("\nAll activity slots scheduled as Free Time.\n");
     } else if (is_exact_order_feasible(g, active_count, active_req, group_size)) {
-        // EXACT ORDER IS FEASIBLE! "If it's possible let them be that"
+
         printf("\n========================================================================\n");
         printf("                     EXACT ORDER FEASIBLE!                              \n");
         printf("========================================================================\n");
@@ -310,13 +305,13 @@ static void handle_preference_based_itinerary(Graph* g, const char* member_name,
             final_sched.assigned_checkpoint_id[i] = active_req[i];
         }
     } else {
-        // EXACT ORDER HAS CAPACITY CONFLICTS! "but if not. let use our algorithm."
+
         printf("\n========================================================================\n");
         printf("               CAPACITY CONFLICT IN EXACT ORDER                         \n");
         printf("========================================================================\n");
         printf(" Your requested order cannot be used directly due to room capacity limits\n");
-        printf(" in certain rounds. Running the Hungarian Algorithm (O(k^3)) to find the \n");
-        printf(" optimal schedule with minimal displacement from your requested order...\n");
+        printf(" in certain rounds. to find the optimal schedule with minimal displacement\n");
+        printf(" from your requested order...\n");
         printf("========================================================================\n");
 
         ItinerarySchedule alts[MAX_ALTERNATIVE_ITINERARIES];
@@ -325,8 +320,8 @@ static void handle_preference_based_itinerary(Graph* g, const char* member_name,
 
         if (success && final_sched.is_valid) {
             printf("\n>>> HUNGARIAN ALGORITHM OPTIMIZATION COMPLETE <<<\n");
-            printf(" The Hungarian algorithm found the optimal schedule matching your\n");
-            printf(" preferences as closely as possible (Schedule Displacement Penalty: %.1f).\n",
+            printf(" The optimal schedule matching your preferences as closely as possible\n");
+            printf(" (Schedule Displacement Penalty: %.1f).\n",
                    final_sched.spearman_penalty);
             printf("------------------------------------------------------------------------\n");
             for (int s = 0; s < num_slots; s++) {
@@ -351,7 +346,6 @@ static void handle_preference_based_itinerary(Graph* g, const char* member_name,
         }
     }
 
-    // 4. Map final schedule to master round array, decrement seats immediately and save
     int assigned_checkpoints[MAX_ROUNDS];
     for (int r = 0; r < total_rounds; r++) assigned_checkpoints[r] = -1;
 
@@ -367,17 +361,17 @@ static void handle_preference_based_itinerary(Graph* g, const char* member_name,
         }
     }
     save_checkpoints("checkpoints.txt", g);
+    save_itinerary_booking("visitor_bookings.txt", g, group_name, member_name, group_size, assigned_checkpoints, total_rounds);
 
-    // 5. Print confirmed summary & route guidance
     print_confirmed_summary(g, group_name, member_name, group_size, total_rounds, ref_node, assigned_checkpoints);
 }
 
 static void handle_step_by_step_itinerary(Graph* g, const char* member_name, const char* group_name, int group_size, int total_rounds, int ref_node) {
     int assigned_checkpoints[MAX_ROUNDS];
     for (int r = 0; r < MAX_ROUNDS; r++) {
-        assigned_checkpoints[r] = -1; // Default: unassigned / free time
+        assigned_checkpoints[r] = -1;
     }
-    int current_loc = 0; // Starts at Entry (Room 0)
+    int current_loc = 0;
 
     for (int r = 0; r < total_rounds; r++) {
         Round rnd = g->nodes[ref_node].rounds[r];
@@ -404,14 +398,14 @@ static void handle_step_by_step_itinerary(Graph* g, const char* member_name, con
 
             if (chosen_id == -2) {
                 printf("\nFinishing checkpoint selection early. Proceeding to final plan...\n");
-                r = total_rounds; // Break outer loop
+                r = total_rounds;
                 break;
             }
 
             if (chosen_id == -1) {
                 assigned_checkpoints[r] = -1;
                 printf("--> Round %d set to: (Free Time / Open Campus Walk)\n", r + 1);
-                break; // Move to next round
+                break;
             }
 
             if (chosen_id < 0 || chosen_id >= g->num_checkpoints ||
@@ -420,7 +414,6 @@ static void handle_step_by_step_itinerary(Graph* g, const char* member_name, con
                 continue;
             }
 
-            // RULE: You won't be able to choose the same checkpoint again!
             int already_chosen_round = -1;
             for (int pr = 0; pr < total_rounds; pr++) {
                 if (assigned_checkpoints[pr] == chosen_id) {
@@ -438,7 +431,7 @@ static void handle_step_by_step_itinerary(Graph* g, const char* member_name, con
             int avail = g->nodes[chosen_id].rounds[r].available_seats;
 
             if (avail >= group_size) {
-                // Room has space! Book immediately and decrease free seats
+
                 g->nodes[chosen_id].rounds[r].available_seats -= group_size;
                 if (g->nodes[chosen_id].rounds[r].available_seats < 0) {
                     g->nodes[chosen_id].rounds[r].available_seats = 0;
@@ -451,9 +444,9 @@ static void handle_step_by_step_itinerary(Graph* g, const char* member_name, con
                        group_name, g->nodes[chosen_id].name, g->nodes[chosen_id].room_num, r + 1);
                 printf("           (Free seats in Round %d immediately decreased to: %d)\n",
                        r + 1, g->nodes[chosen_id].rounds[r].available_seats);
-                break; // Move to next round
+                break;
             } else {
-                // Room is at MAX CAPACITY!
+
                 printf("\n========================================================\n");
                 printf(" [ROOM FULL] %s (Room %d) has only %d seats left (need %d) for Round %d!\n",
                        g->nodes[chosen_id].name, g->nodes[chosen_id].room_num, avail, group_size, r + 1);
@@ -511,6 +504,7 @@ static void handle_step_by_step_itinerary(Graph* g, const char* member_name, con
     }
 
     save_checkpoints("checkpoints.txt", g);
+    save_itinerary_booking("visitor_bookings.txt", g, group_name, member_name, group_size, assigned_checkpoints, total_rounds);
     print_confirmed_summary(g, group_name, member_name, group_size, total_rounds, ref_node, assigned_checkpoints);
 }
 
@@ -544,7 +538,6 @@ static void handle_capacity_aware_itinerary(Graph* g) {
     printf(" Welcome, %s (%d visitor%s)!\n", group_name, group_size, (group_size > 1 ? "s" : ""));
     printf("========================================================\n");
 
-    // Display daily schedule
     printf("\n--- Daily Parallel Schedule Overview ---\n");
     for (int r = 0; r < total_rounds; r++) {
         Round rnd = g->nodes[ref_node].rounds[r];
@@ -598,7 +591,6 @@ static void handle_free_exploration_tour(Graph* g) {
 
     display_all_checkpoints_for_tour(g);
 
-    // Prompt for starting location (default 0 for Entry)
     int start_node = 0;
     printf("\nEnter starting location (Checkpoint ID, default 0 for Main Entry): ");
     if (scanf("%d", &start_node) != 1 || start_node < 0 || start_node >= g->num_checkpoints) {
@@ -607,7 +599,6 @@ static void handle_free_exploration_tour(Graph* g) {
     printf("--> Starting Tour from: [%s] (Room %d)\n",
            g->nodes[start_node].name, g->nodes[start_node].room_num);
 
-    // Count available exhibition checkpoints
     int available_count = 0;
     for (int i = 0; i < g->num_checkpoints; i++) {
         if (i != 0 && g->nodes[i].num_rounds > 0 && strlen(g->nodes[i].name) > 0) {
@@ -644,7 +635,6 @@ static void handle_free_exploration_tour(Graph* g) {
                 continue;
             }
 
-            // Check duplicate entry in this tour
             int is_dup = 0;
             for (int prev = 0; prev < i; prev++) {
                 if (targets[prev] == cp_id) {
@@ -666,7 +656,6 @@ static void handle_free_exploration_tour(Graph* g) {
     printf("\nCalculating mathematically optimal shortest walking route for %s...\n", group_name);
     OptimalTour tour = find_optimal_tour(g, start_node, targets, num_targets);
 
-    // Calculate sequential entered order distance for comparison
     double entered_distance = 0.0;
     int prev_entered = start_node;
     for (int i = 0; i < num_targets; i++) {
@@ -677,7 +666,6 @@ static void handle_free_exploration_tour(Graph* g) {
         prev_entered = targets[i];
     }
 
-    // Print Results
     printf("\n========================================================================\n");
     printf("         OPTIMAL EXPLORATION TOUR FOR %s         \n", group_name);
     printf("========================================================================\n");
@@ -712,11 +700,11 @@ static void handle_free_exploration_tour(Graph* g) {
                    (n < tour.leg_paths[i].node_count - 1 ? " ──> " : ""));
         }
         printf("\n");
+        visualize_path(g, &tour.leg_paths[i]);
         prev_loc = cid;
     }
     printf("----------------------------------------------------\n");
 
-    // Print Confirmed Summary Table for Group
     printf("\n========================================================================\n");
     printf("              CONFIRMED TOUR SUMMARY: %s              \n", group_name);
     printf("========================================================================\n");
@@ -738,14 +726,75 @@ static void handle_free_exploration_tour(Graph* g) {
     }
     printf("========================================================================\n");
     printf(" TOTAL ESTIMATED WALKING DISTANCE: %.1f meters\n", tour.total_distance);
+    printf(" Booking Status                  : CONFIRMED & LOGGED TO visitor_bookings.txt\n");
     printf("========================================================================\n");
+
+    save_tour_booking("visitor_bookings.txt", g, group_name, member_name, group_size, start_node, tour.ordered_checkpoints, tour.count, tour.total_distance);
+
     printf("\nThank you, %s! Enjoy your personalized exploration of KVIS Open House!\n", group_name);
+}
+
+static void handle_map_visualizer_menu(Graph* g) {
+    while (1) {
+        printf("\n========================================================\n");
+        printf("         ROUTE PATH VISUALIZER & CAMPUS MAP             \n");
+        printf("========================================================\n");
+        printf(" [1] View Level 1 Floor Map (Ground / Level 1)\n");
+        printf(" [2] View Level 2 Floor Map (Main Entry / Level 2)\n");
+        printf(" [3] View Level 3 Floor Map (Arc / Level 3)\n");
+        printf(" [4] View All Floor Maps (Levels 1, 2, and 3)\n");
+        printf(" [5] Find Shortest Path & Visualize Route (Any 2 Locations)\n");
+        printf(" [6] Return to Visitor Menu\n");
+        printf("Select an option (1-6): ");
+
+        int opt = 0;
+        if (scanf("%d", &opt) != 1) {
+            int c; while ((c = getchar()) != '\n' && c != EOF);
+            break;
+        }
+
+        if (opt == 1) {
+            display_floor_map(1);
+        } else if (opt == 2) {
+            display_floor_map(2);
+        } else if (opt == 3) {
+            display_floor_map(3);
+        } else if (opt == 4) {
+            display_all_floor_maps();
+        } else if (opt == 5) {
+            printf("\n--- Available Exhibition Checkpoints & Locations ---\n");
+            for (int i = 0; i < g->num_checkpoints; i++) {
+                if (strlen(g->nodes[i].name) == 0) continue;
+                int f = get_node_floor_level(g->nodes[i].name, g->nodes[i].room_num);
+                printf("  [%2d] %-20s (Room %4d, Level %d)\n", i, g->nodes[i].name, g->nodes[i].room_num, f);
+            }
+            int u = 0, v = 1;
+            printf("\nEnter starting location ID (default 0 for Entry): ");
+            if (scanf("%d", &u) != 1 || u < 0 || u >= g->num_checkpoints) u = 0;
+            printf("Enter destination location ID: ");
+            if (scanf("%d", &v) != 1 || v < 0 || v >= g->num_checkpoints) {
+                printf("[Error] Invalid destination location ID.\n");
+                continue;
+            }
+
+            Path p;
+            if (dijkstra_shortest_path(g, u, v, NULL, 0, &p)) {
+                visualize_path(g, &p);
+            } else {
+                printf("[Notice] No walking route found between [%s] and [%s].\n",
+                       g->nodes[u].name, g->nodes[v].name);
+            }
+        } else if (opt == 6) {
+            break;
+        } else {
+            printf("[Error] Invalid choice. Please enter 1-6.\n");
+        }
+    }
 }
 
 int main() {
     Graph* g = create_graph(0);
 
-    // 1. Load Data
     int cp_count = load_checkpoints("checkpoints.txt", g);
     int edge_count = load_distances("distance.txt", g);
 
@@ -765,8 +814,9 @@ int main() {
         printf("========================================================\n");
         printf(" [1] Smart Capacity-Aware Itinerary (Continuous Selection & Rounds)\n");
         printf(" [2] Free Exploration Tour (Pick Checkpoints Freely & Find Optimal Route)\n");
-        printf(" [3] Exit\n");
-        printf("Select an option (1-3): ");
+        printf(" [3] Route Path Visualizer & Campus Map (View Map & Visualize Path to Any Room)\n");
+        printf(" [4] Exit\n");
+        printf("Select an option (1-4): ");
 
         int choice = 0;
         if (scanf("%d", &choice) != 1) {
@@ -778,10 +828,12 @@ int main() {
         } else if (choice == 2) {
             handle_free_exploration_tour(g);
         } else if (choice == 3) {
+            handle_map_visualizer_menu(g);
+        } else if (choice == 4) {
             printf("\nExiting Visitor Guidance System. Goodbye!\n");
             break;
         } else {
-            printf("[Error] Invalid choice. Please enter 1, 2, or 3.\n");
+            printf("[Error] Invalid choice. Please enter 1, 2, 3, or 4.\n");
         }
     }
 

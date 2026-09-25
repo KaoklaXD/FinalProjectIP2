@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <errno.h>
 #include "graph.h"
 #include "storage.h"
@@ -90,7 +90,6 @@ int add_new_checkpoint(const char *filename) {
     char name[64];
     int next_id = 0;
 
-    // Display existing checkpoint numbers and their assigned rooms
     show_checkpoint_room_mapping(filename, &next_id);
 
     printf("=======================================\n");
@@ -147,7 +146,7 @@ int add_new_checkpoint(const char *filename) {
         for (int i = 0; i < 7; i++) {
             starttime[i] = default_starts[i];
             endtime[i] = default_ends[i];
-            if (i == 3) is_lunch[i] = 1; // Round 4 is Lunch Break
+            if (i == 3) is_lunch[i] = 1;
         }
         printf("\n[Applied] Synchronized Parallel Schedule applied (6 activity rounds + Round 4 Lunch Break).\n");
     } else {
@@ -174,7 +173,6 @@ int add_new_checkpoint(const char *filename) {
         }
     }
 
-    // Append to checkpoints.txt
     FILE *fp = fopen(filename, "a");
     if (fp == NULL) {
         printf("[Error] Unable to open '%s' for writing.\n", filename);
@@ -203,18 +201,21 @@ int main() {
         printf("   KVIS OPEN HOUSE: STAFF CONTROL PANEL\n");
         printf("=======================================\n");
         printf(" [1] Add New Checkpoint & Rounds\n");
-        printf(" [2] Exit\n");
+        printf(" [2] View Visitor Bookings Log (visitor_bookings.txt)\n");
+        printf(" [3] Exit\n");
         printf("Enter selection: ");
 
-        if (scanf("%d", &choice) != 1 || choice == 2) {
+        if (scanf("%d", &choice) != 1 || choice == 3) {
             printf("\nExiting Staff Control Panel. Goodbye!\n");
             break;
         }
 
         if (choice == 1) {
             add_new_checkpoint("checkpoints.txt");
+        } else if (choice == 2) {
+            display_visitor_bookings("visitor_bookings.txt");
         } else {
-            printf("Invalid selection! Please enter 1 or 2.\n");
+            printf("Invalid selection! Please enter 1, 2, or 3.\n");
         }
     }
     return 0;

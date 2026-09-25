@@ -64,7 +64,6 @@ void free_graph(Graph* g) {
     free(g);
 }
 
-// Dijkstra shortest path supporting blocked nodes and disabled edges
 int dijkstra_shortest_path(Graph* g, int start, int target, const int* blocked_nodes, int num_blocked, Path* result) {
     if (!g || start < 0 || start >= g->num_checkpoints || target < 0 || target >= g->num_checkpoints) {
         return 0;
@@ -80,7 +79,6 @@ int dijkstra_shortest_path(Graph* g, int start, int target, const int* blocked_n
         visited[i] = false;
     }
 
-    // Mark blocked nodes as visited so they won't be traversed
     for (int b = 0; b < num_blocked; b++) {
         int node = blocked_nodes[b];
         if (node >= 0 && node < g->num_checkpoints) {
@@ -89,7 +87,7 @@ int dijkstra_shortest_path(Graph* g, int start, int target, const int* blocked_n
     }
 
     dist[start] = 0;
-    visited[start] = false; // Ensure start itself can be explored
+    visited[start] = false;
 
     for (int count = 0; count < g->num_checkpoints; count++) {
         double min_dist = INF;
@@ -116,10 +114,9 @@ int dijkstra_shortest_path(Graph* g, int start, int target, const int* blocked_n
     }
 
     if (dist[target] >= INF / 2.0) {
-        return 0; // Unreachable
+        return 0;
     }
 
-    // Reconstruct path
     int temp[MAX_CHECKPOINTS];
     int len = 0;
     int curr = target;
@@ -130,7 +127,7 @@ int dijkstra_shortest_path(Graph* g, int start, int target, const int* blocked_n
     }
 
     if (len == 0 || temp[len - 1] != start) {
-        return 0; // Incomplete path
+        return 0;
     }
 
     result->node_count = len;
@@ -149,7 +146,6 @@ static bool paths_are_equal(const Path* p1, const Path* p2) {
     return true;
 }
 
-// Yen's K-Shortest Paths algorithm for genuine distinct routes
 void k_shortest_paths(Graph* g, int start, int target, int k, Path results[], int* result_count) {
     *result_count = 0;
     if (!g || k <= 0 || start < 0 || start >= g->num_checkpoints || target < 0 || target >= g->num_checkpoints) {
@@ -178,7 +174,6 @@ void k_shortest_paths(Graph* g, int start, int target, int k, Path results[], in
                 root_path.nodes[r] = prev_path->nodes[r];
             }
 
-            // Temporarily disable edges that share the same root path in results
             for (int p = 0; p < *result_count; p++) {
                 const Path* existing = &results[p];
                 if (existing->node_count > i + 1) {
@@ -201,7 +196,6 @@ void k_shortest_paths(Graph* g, int start, int target, int k, Path results[], in
                 }
             }
 
-            // Block all nodes in root path except spur_node
             int blocked_nodes[MAX_CHECKPOINTS];
             int num_blocked = 0;
             for (int r = 0; r < i; r++) {
@@ -214,16 +208,14 @@ void k_shortest_paths(Graph* g, int start, int target, int k, Path results[], in
                 total_candidate.node_count = 0;
                 total_candidate.total_distance = 0.0;
 
-                // Copy root path
                 for (int r = 0; r <= i; r++) {
                     total_candidate.nodes[total_candidate.node_count++] = root_path.nodes[r];
                 }
-                // Append spur path (skip first node since it's spur_node)
+
                 for (int s = 1; s < spur_path.node_count; s++) {
                     total_candidate.nodes[total_candidate.node_count++] = spur_path.nodes[s];
                 }
 
-                // Compute exact distance
                 double dist_acc = 0.0;
                 bool valid_dist = true;
                 for (int s = 0; s < total_candidate.node_count - 1; s++) {
@@ -245,7 +237,6 @@ void k_shortest_paths(Graph* g, int start, int target, int k, Path results[], in
                 if (valid_dist) {
                     total_candidate.total_distance = dist_acc;
 
-                    // Check if unique
                     bool exists = false;
                     for (int p = 0; p < *result_count; p++) {
                         if (paths_are_equal(&total_candidate, &results[p])) {
@@ -266,7 +257,6 @@ void k_shortest_paths(Graph* g, int start, int target, int k, Path results[], in
                 }
             }
 
-            // Restore disabled edges
             for (int n = 0; n < g->num_checkpoints; n++) {
                 for (Edge* e = g->nodes[n].head; e != NULL; e = e->next) {
                     e->disabled = 0;
@@ -275,10 +265,9 @@ void k_shortest_paths(Graph* g, int start, int target, int k, Path results[], in
         }
 
         if (candidate_count == 0) {
-            break; // No more alternative paths exist
+            break;
         }
 
-        // Find best candidate in B
         int best_c = 0;
         double min_dist = candidates[0].total_distance;
         for (int c = 1; c < candidate_count; c++) {
@@ -290,13 +279,11 @@ void k_shortest_paths(Graph* g, int start, int target, int k, Path results[], in
 
         results[(*result_count)++] = candidates[best_c];
 
-        // Remove chosen candidate
         candidates[best_c] = candidates[candidate_count - 1];
         candidate_count--;
     }
 }
 
-// Backward-compatible alias
 void eppstein_k_shortest_paths(Graph* g, int start, int target, int k, Path results[], int* result_count) {
     k_shortest_paths(g, start, target, k, results, result_count);
 }

@@ -17,25 +17,23 @@ static char* trim(char* str) {
 int find_checkpoint_by_name(Graph* g, const char* name) {
     if (!g || !name) return -1;
     for (int i = 0; i < g->num_checkpoints; i++) {
-        // 1. Direct case-insensitive match
+
         if (strcasecmp(g->nodes[i].name, name) == 0) {
             return i;
         }
 
-        // 2. Room number match
         if (g->nodes[i].room_num > 0) {
             char room_str[16];
             snprintf(room_str, sizeof(room_str), "%d", g->nodes[i].room_num);
             if (strcmp(room_str, name) == 0) {
                 return i;
             }
-            // Prefix room match (e.g., token "112(dream)" matches room 112)
+
             if (strncmp(name, room_str, strlen(room_str)) == 0) {
                 return i;
             }
         }
 
-        // 3. Substring match (e.g., "dream" inside "112(dream)" matches "DreamLab")
         if (strlen(g->nodes[i].name) > 0 && strlen(name) >= 3) {
             if (strcasestr(name, g->nodes[i].name) != NULL ||
                 strcasestr(g->nodes[i].name, name) != NULL) {
@@ -58,7 +56,6 @@ int get_or_create_node(Graph* g, const char* name) {
     int existing = find_checkpoint_by_name(g, trimmed);
     if (existing != -1) return existing;
 
-    // Check if name is pure integer matching an ID
     char* endptr;
     long val = strtol(trimmed, &endptr, 10);
     if (*endptr == '\0' && val >= 0 && val < g->num_checkpoints) {
@@ -97,7 +94,7 @@ int load_checkpoints(const char* filename, Graph* g) {
         if (strncmp(trimmed, "CHECKPOINT", 10) == 0) {
             int id = -1, round_num = 0, max_seat = 0, roomnum = 0;
             char name[64] = {0};
-            
+
             int matched = sscanf(trimmed, "CHECKPOINT %d %63s %d %d %d", &id, name, &round_num, &max_seat, &roomnum);
             if (matched >= 4 && id >= 0 && id < MAX_CHECKPOINTS) {
                 current_id = id;
@@ -192,12 +189,10 @@ int load_distances(const char* filename, Graph* g) {
         char* trimmed = trim(line);
         if (strlen(trimmed) == 0) continue;
 
-        // Skip non-corridor lines that have no '-' and are not EDGE lines
         if (strchr(trimmed, '-') == NULL && strncmp(trimmed, "EDGE", 4) != 0) {
             continue;
         }
 
-        // Direct EDGE definition: EDGE u v distance
         if (strncmp(trimmed, "EDGE", 4) == 0) {
             char u_str[64], v_str[64];
             double dist = 10.0;
@@ -212,7 +207,6 @@ int load_distances(const char* filename, Graph* g) {
             continue;
         }
 
-        // Hyphen chain corridor: entry-audi2-212-213-1stair
         char* token = strtok(trimmed, "-");
         int prev_node = -1;
         while (token != NULL) {
@@ -220,7 +214,7 @@ int load_distances(const char* filename, Graph* g) {
             if (strlen(t_trim) > 0) {
                 int curr_node = get_or_create_node(g, t_trim);
                 if (prev_node != -1 && curr_node != -1) {
-                    add_bi_edge(g, prev_node, curr_node, 10.0); // Exactly 10m per adjacent hallway segment
+                    add_bi_edge(g, prev_node, curr_node, 10.0);
                     edges_added++;
                 }
                 prev_node = curr_node;
@@ -235,8 +229,7 @@ int load_distances(const char* filename, Graph* g) {
 
 int is_valid_checkpoint_room(const char* name, int room_num) {
     if (!name) return 0;
-    
-    // Explicit exclusions (waypoints, stairs, lifts, facilities, hallways)
+
     if (strcasestr(name, "stair") != NULL) return 0;
     if (strcasestr(name, "lift") != NULL) return 0;
     if (strcasestr(name, "wing") != NULL) return 0;
@@ -249,7 +242,6 @@ int is_valid_checkpoint_room(const char* name, int room_num) {
     if (strcasecmp(name, "bathroom") == 0) return 0;
     if (strcasecmp(name, "canteen") == 0) return 0;
 
-    // Rule: Must contain "audi" OR have a room number (digits)
     if (strcasestr(name, "audi") != NULL) {
         return 1;
     }
@@ -287,4 +279,96 @@ int get_activity_rounds(Graph* g, int* round_indices, int max_out) {
         }
     }
     return count;
+}
+
+int save_itinerary_booking(const char* filename, Graph* g, const char* group_name, const char* member_name, int group_size, const int* assigned_checkpoints, int total_rounds) {
+    if (!filename || !g || !group_name || !member_name || group_size <= 0) return 0;
+    FILE* fp = fopen(filename, "a");
+    if (!fp) return 0;
+
+    int ref_node = -1;
+    for (int i = 0; i < g->num_checkpoints; i++) {
+        if (g->nodes[i].num_rounds > 0) { ref_node = i; break; }
+    }
+
+    fprintf(fp, "========================================================================\n");
+    fprintf(fp, "BOOKING: ITINERARY PLAN\n");
+    fprintf(fp, "Group Name     : %s\n", group_name);
+    fprintf(fp, "Representative : %s\n", member_name);
+    fprintf(fp, "Group Size     : %d visitor%s\n", group_size, (group_size > 1 ? "s" : ""));
+    fprintf(fp, "Status         : CONFIRMED\n");
+    fprintf(fp, "Schedule Details:\n");
+
+    for (int r = 0; r < total_rounds; r++) {
+        double sh = 9.0, eh = 10.0;
+        int is_lunch = 0;
+        if (ref_node != -1) {
+            Round rnd = g->nodes[ref_node].rounds[r];
+            sh = rnd.start_time;
+            eh = rnd.end_time;
+            is_lunch = rnd.is_lunch_break;
+        }
+        int sh_h = (int)sh, sh_m = (int)((sh - sh_h) * 60);
+        int eh_h = (int)eh, eh_m = (int)((eh - eh_h) * 60);
+
+        if (is_lunch) {
+            fprintf(fp, "  [Round %d] %02d:%02d - %02d:%02d : LUNCH BREAK (Empty Section)\n",
+                    r + 1, sh_h, sh_m, eh_h, eh_m);
+        } else {
+            int cid = assigned_checkpoints[r];
+            if (cid > 0 && cid < g->num_checkpoints) {
+                fprintf(fp, "  [Round %d] %02d:%02d - %02d:%02d : %s (Room %d)\n",
+                        r + 1, sh_h, sh_m, eh_h, eh_m,
+                        g->nodes[cid].name, g->nodes[cid].room_num);
+            } else {
+                fprintf(fp, "  [Round %d] %02d:%02d - %02d:%02d : (Free Time / Open Campus Walk)\n",
+                        r + 1, sh_h, sh_m, eh_h, eh_m);
+            }
+        }
+    }
+    fprintf(fp, "========================================================================\n\n");
+    fclose(fp);
+    return 1;
+}
+
+int save_tour_booking(const char* filename, Graph* g, const char* group_name, const char* member_name, int group_size, int start_node, const int* ordered_checkpoints, int count, double total_distance) {
+    if (!filename || !g || !group_name || !member_name || group_size <= 0) return 0;
+    FILE* fp = fopen(filename, "a");
+    if (!fp) return 0;
+
+    fprintf(fp, "========================================================================\n");
+    fprintf(fp, "BOOKING: FREE EXPLORATION TOUR\n");
+    fprintf(fp, "Group Name     : %s\n", group_name);
+    fprintf(fp, "Representative : %s\n", member_name);
+    fprintf(fp, "Group Size     : %d visitor%s\n", group_size, (group_size > 1 ? "s" : ""));
+    fprintf(fp, "Starting Point : %s (Room %d)\n", g->nodes[start_node].name, g->nodes[start_node].room_num);
+    fprintf(fp, "Total Distance : %.1f meters\n", total_distance);
+    fprintf(fp, "Status         : CONFIRMED\n");
+    fprintf(fp, "Optimal Tour Sequence:\n");
+    for (int i = 0; i < count; i++) {
+        int cid = ordered_checkpoints[i];
+        fprintf(fp, "  Stop %d: %s (Room %d)\n", i + 1, g->nodes[cid].name, g->nodes[cid].room_num);
+    }
+    fprintf(fp, "========================================================================\n\n");
+    fclose(fp);
+    return 1;
+}
+
+int display_visitor_bookings(const char* filename) {
+    FILE* fp = fopen(filename, "r");
+    if (!fp) {
+        printf("\n[Notice] No visitor bookings found in '%s'.\n", filename);
+        return 0;
+    }
+    printf("\n========================================================================\n");
+    printf("                    MASTER VISITOR BOOKINGS LOG                         \n");
+    printf("========================================================================\n");
+    char line[256];
+    int lines = 0;
+    while (fgets(line, sizeof(line), fp)) {
+        printf("%s", line);
+        lines++;
+    }
+    fclose(fp);
+    return (lines > 0);
 }

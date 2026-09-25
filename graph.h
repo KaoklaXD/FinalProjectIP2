@@ -14,11 +14,11 @@ typedef struct Edge {
 
 typedef struct Round {
     int round_id;
-    double start_time;    // e.g. 9.50 = 09:30
-    double end_time;      // e.g. 12.50 = 12:30
+    double start_time;
+    double end_time;
     int max_seats;
     int available_seats;
-    int is_lunch_break;   // 1 if lunch break (empty section), 0 if regular activity round
+    int is_lunch_break;
 } Round;
 
 typedef struct Checkpoint {
@@ -28,8 +28,8 @@ typedef struct Checkpoint {
     int room_num;
     int num_rounds;
     Round rounds[MAX_ROUNDS];
-    int available_seats;  // Default / overall available seats
-    int max_seats;        // Default / overall maximum seats
+    int available_seats;
+    int max_seats;
     Edge* head;
 } Checkpoint;
 
@@ -44,7 +44,6 @@ typedef struct Path {
     double total_distance;
 } Path;
 
-// Function declarations
 Graph* create_graph(int num_checkpoints);
 void add_edge(Graph* g, int u, int v, double distance);
 void add_bi_edge(Graph* g, int u, int v, double distance);
